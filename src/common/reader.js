@@ -516,6 +516,14 @@ class Reader {
 				document.body.classList.remove('freeze');
 			}
 		}
+		if (this._type === 'pdf') {
+			if (this._state.primaryViewStats.pageIndex !== previousState.primaryViewStats.pageIndex) {
+				this._primaryView?.updateAriaPage(this._state.primaryViewStats.pageIndex);
+			}
+			if (this._state.secondaryViewStats.pageIndex !== previousState.secondaryViewStats.pageIndex) {
+				this._secondaryView?.updateAriaPage(this._state.secondaryViewStats.pageIndex);
+			}
+		}
 	}
 
 	disableSplitView() {

@@ -2711,6 +2711,14 @@ class PDFView {
 		}
 	}
 
+	async updateAriaPage(newPageIndex) {
+		let pages = [...this._iframeWindow.document.querySelectorAll(".page")];
+		for (let page of pages) {
+			let isCurrent = page.dataset.pageNumber == `${newPageIndex + 1}`;
+			page.setAttribute("aria-hidden", !isCurrent);
+		}
+	}
+
 	async _getPositionFromDestination(dest) {
 		const pdfDocument = this._iframeWindow.PDFViewerApplication.pdfDocument;
 		if (!pdfDocument || !dest) {
