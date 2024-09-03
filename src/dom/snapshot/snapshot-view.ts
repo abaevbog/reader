@@ -476,7 +476,7 @@ class SnapshotView extends DOMView<SnapshotViewState, SnapshotViewData> {
 		}
 	}
 
-	override navigate(location: NavLocation, options: NavigateOptions = {}) {
+	override navigate(location: NavLocation, options: NavigateOptions = {}): HTMLElement | undefined {
 		console.log('Navigating to', location);
 		options.behavior ||= 'smooth';
 
@@ -490,6 +490,7 @@ class SnapshotView extends DOMView<SnapshotViewState, SnapshotViewData> {
 		if (!options.skipHistory) {
 			this._pushHistoryPoint();
 		}
+		return undefined;
 	}
 
 	async print() {

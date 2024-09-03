@@ -1123,6 +1123,7 @@ abstract class DOMView<State extends DOMViewState, Data> {
 			this._renderAnnotations();
 			this._repositionPopups();
 		});
+		this._options.setA11yVirtualCursorTarget(null);
 	}
 
 	protected _handleScrollCapture(event: Event) {
@@ -1318,7 +1319,8 @@ abstract class DOMView<State extends DOMViewState, Data> {
 
 	protected abstract _setScale(scale: number): void;
 
-	navigate(location: NavLocation, options: NavigateOptions = {}) {
+	navigate(location: NavLocation, options: NavigateOptions = {}): HTMLElement | undefined {
+		console.log("Dom view navigate ", location, options);
 		if (location.annotationID) {
 			options.block ||= 'center';
 			options.ifNeeded ??= true;
@@ -1397,6 +1399,8 @@ export type DOMViewOptions<State extends DOMViewState, Data> = {
 	onKeyUp: (event: KeyboardEvent) => void;
 	onKeyDown: (event: KeyboardEvent) => void;
 	onEPUBEncrypted: () => void;
+	setA11yVirtualCursorTarget: (node: Node | null) => void;
+	setA11yNavContent: (node: Node, pageIndex: string) => void;
 	data: Data & {
 		buf?: Uint8Array,
 		url?: string

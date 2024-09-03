@@ -219,6 +219,7 @@ class EPUBView extends DOMView<EPUBViewState, EPUBViewData> {
 
 		// @ts-ignore
 		this.book.archive.zip = null;
+		this._addAriaNavigationLandmarks();
 	}
 
 	private async _isEncrypted() {
@@ -329,6 +330,27 @@ class EPUBView extends DOMView<EPUBViewState, EPUBViewData> {
 		catch (e) {
 			console.error('Unable to get range for CFI', cfiString, e);
 			return null;
+		}
+	}
+
+	// Add landmarks with page labels for screen reader navigation
+	private async _addAriaNavigationLandmarks() {
+		for (let [key, value] of this.pageMapping.tree.entries()) {
+			let node = key.startContainer;
+			let doc = node.ownerDocument;
+			let textNodeWrapper = closestElement(node);
+			let section = textNodeWrapper?.parentElement;
+
+			if (!doc || !section || !textNodeWrapper) continue;
+
+			let nav = doc.createElement('nav');
+			nav.style.position = "absolute";
+			nav.style.clipPath = "inset(50%)";
+			nav.setAttribute("pageindex", value);
+
+			this._options.setA11yNavContent(nav, value);
+			
+			section.insertBefore(nav, textNodeWrapper.nextSibling);
 		}
 	}
 
@@ -906,6 +928,7 @@ class EPUBView extends DOMView<EPUBViewState, EPUBViewData> {
 			let result = await processor.next();
 			if (result) {
 				this.flow.scrollIntoView(result.range);
+				this._options.setA11yVirtualCursorTarget(result.range.startContainer);
 			}
 			this._renderAnnotations();
 		}
@@ -918,6 +941,7 @@ class EPUBView extends DOMView<EPUBViewState, EPUBViewData> {
 			let result = await processor.prev();
 			if (result) {
 				this.flow.scrollIntoView(result.range);
+				// this._options.setA11yVirtualCursorTarget(result.range.startContainer);
 			}
 			this._renderAnnotations();
 		}
@@ -933,7 +957,7 @@ class EPUBView extends DOMView<EPUBViewState, EPUBViewData> {
 		}
 	}
 
-	override navigate(location: NavLocation, options: NavigateOptions = {}) {
+	override navigate(location: NavLocation, options: NavigateOptions = {}): HTMLElement | undefined {
 		console.log('Navigating to', location);
 		options.behavior ||= 'smooth';
 
@@ -991,6 +1015,8 @@ class EPUBView extends DOMView<EPUBViewState, EPUBViewData> {
 					return;
 				}
 				this.flow.scrollIntoView(view.container, options);
+				// eslint-disable-next-line consistent-return
+				return view.container;
 			}
 		}
 		else {

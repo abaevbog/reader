@@ -546,12 +546,14 @@ export class PaginatedFlow extends AbstractFlow {
 		this.currentSectionIndex = this._view.views[0].section.index;
 		this._sectionsContainer.scrollTo({ left: 0, top: 0 });
 		this._onViewUpdate();
+		console.log("First but from flow");
 	}
 
 	navigateToLastPage(): void {
 		this.currentSectionIndex = this._view.views[this._view.views.length - 1].section.index;
 		this._sectionsContainer.scrollTo({ left: this._sectionsContainer.scrollWidth, top: 0 });
 		this._onViewUpdate();
+		console.log("Last from flow");
 	}
 
 	private _handleKeyDown = (event: KeyboardEvent) => {

@@ -19,6 +19,7 @@ import { KeyboardManager } from './keyboard-manager';
 import {
 	getImageDataURL, isMac,
 	setMultiDragPreview,
+	debounceUntilScrollFinishes
 } from './lib/utilities';
 import { debounce } from './lib/debounce';
 
@@ -186,6 +187,7 @@ class Reader {
 				entireWord: false,
 				result: null
 			},
+			ariaNodeTarget: null
 		};
 
 		if (options.secondaryViewState) {
@@ -659,6 +661,7 @@ class Reader {
 	setA11ySearchResultMessage(primaryView) {
 		let result = (primaryView ? this._state.primaryViewFindState : this._state.secondaryViewFindState).result;
 		if (!result) return;
+		console.log("Result message ", result);
 		let searchIndex = `${this._getString("pdfReader.searchResultIndex")}: ${result.index + 1}`;
 		let totalResults = `${this._getString("pdfReader.searchResultTotal")}: ${result.total}`;
 		this.setA11yMessage(`${searchIndex}. ${totalResults}`);
@@ -797,6 +800,7 @@ class Reader {
 			this.focusView(primary);
 			// A workaround for Firefox/Zotero because iframe focusing doesn't trigger 'focusin' event
 			this._focusManager._closeFindPopupIfEmpty();
+			this.placeA11yVirtualCursor();
 		};
 
 		let onRequestPassword = () => {
@@ -860,6 +864,18 @@ class Reader {
 			let annotationType = this._getString(`pdfReader.${annotation.type}Annotation`);
 			let annotationContent = `${annotationType}. ${annotation.text || annotation.comment}`;
 			this.setA11yMessage(annotationContent);
+		}
+
+		// Set properties for a hidden header with page info properties for screen reader navigation
+		let setA11yNavContent = (node, pageIndex) => {
+			node.textContent = `${this._getString("pdfReader.page")}: ${pageIndex}`;
+		}
+
+		let setA11yVirtualCursorTarget = (node) => {
+			if (node !== this._state.ariaNodeTarget) {
+				console.log("Update virt cursor!");
+				this._updateState({ ariaNodeTarget: node });
+			}
 		}
 
 		let data;
@@ -939,6 +955,8 @@ class Reader {
 				fontFamily: this._state.fontFamily,
 				hyphenate: this._state.hyphenate,
 				onEPUBEncrypted,
+				setA11yNavContent,
+				setA11yVirtualCursorTarget,
 			});
 		} else if (this._type === 'snapshot') {
 			view = new SnapshotView({
@@ -963,6 +981,35 @@ class Reader {
 		// Voiceover won't announce messages inserted via <div id="a11yAnnouncement" aria-live="polite">{state.a11yMessage}</div>
 		// but setting .innerText does work. Likely due to either voiceover bug or not full aria-live support by firefox.
 		document.getElementById("a11yAnnouncement").innerText = a11yMessage;
+	}
+
+	placeA11yVirtualCursor () {
+		let target = this._state.ariaNodeTarget;
+		let doc = this._lastView._iframe.contentDocument;
+		if (!target || !doc.contains(target)) return;
+		let dummy = doc.createElement("div");;
+		dummy.id = "ariaFocusDummy";
+		console.log("Virt cursor? ");
+		dummy.setAttribute("tabindex", "-1");
+		dummy.setAttribute("aria-label", "Focus Cursor");
+		// Make it invisible
+		dummy.style.clipPath = "inset(50%)";
+		// On blur or keypress, remove it
+		dummy.addEventListener("blur", (event) => {
+			event.target.remove();
+		});
+		dummy.addEventListener("keydown", (event) => {
+			event.target.blur();
+		});
+		// Insert into the view
+		if (target.nodeName === "#text") {
+			target.parentElement?.prepend(dummy);
+		}
+		else {
+			target.prepend(dummy);
+		}
+		dummy.focus();
+		this._updateState({ ariaNodeTarget: null });
 	}
 
 	getUnsavedAnnotations() {
@@ -1034,10 +1081,15 @@ class Reader {
 
 	async navigate(location) {
 		await this._lastView.initializedPromise;
-		this._lastView.navigate(location);
+		let navTarget = this._lastView.navigate(location);
+		if (navTarget) {
+			await debounceUntilScrollFinishes(this._lastView._iframe.contentDocument, 100);
+			this._updateState({ ariaNodeTarget: navTarget });
+		}
 	}
 
 	navigateBack() {
+		console.log("Back?");
 		this._lastView.navigateBack();
 	}
 
@@ -1046,11 +1098,13 @@ class Reader {
 	}
 
 	navigateToFirstPage() {
+		console.log("FIrst page?");
 		this._ensureType('pdf', 'epub');
 		this._lastView.navigateToFirstPage();
 	}
 
 	navigateToLastPage() {
+		console.log("Last?");
 		this._ensureType('pdf', 'epub');
 		this._lastView.navigateToLastPage();
 	}
@@ -1066,11 +1120,13 @@ class Reader {
 	}
 
 	navigateToPreviousSection() {
+		console.log("Prev section?");
 		this._ensureType('epub');
 		this._lastView.navigateToPreviousSection();
 	}
 
 	navigateToNextSection() {
+		console.log("next section?");
 		this._ensureType('epub');
 		this._lastView.navigateToNextSection();
 	}
