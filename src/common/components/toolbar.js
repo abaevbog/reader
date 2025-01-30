@@ -72,7 +72,7 @@ function Toolbar(props) {
 	}
 
 	return (
-		<div className="toolbar" data-tabstop={1}>
+		<div className="toolbar" data-tabstop={1} role="application">
 			<div className="start">
 				<button
 					id="sidebarToggle"
@@ -134,6 +134,7 @@ function Toolbar(props) {
 							tabIndex={-1}
 							disabled={!props.enableNavigateToPreviousPage}
 							onClick={props.onNavigateToPreviousPage}
+							aria-describedby='numPages'
 						><IconChevronUp/></button>
 						<button
 							className="toolbar-button pageDown"
@@ -142,6 +143,7 @@ function Toolbar(props) {
 							tabIndex={-1}
 							disabled={!props.enableNavigateToNextPage}
 							onClick={props.onNavigateToNextPage}
+							aria-describedby='numPages'
 						><IconChevronDown/></button>
 					</React.Fragment>
 				)}

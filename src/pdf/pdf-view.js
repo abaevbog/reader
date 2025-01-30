@@ -45,13 +45,16 @@ import {
 	isWin,
 	isFirefox,
 	isSafari,
-	throttle
+	throttle,
+	placeA11yVirtualCursor
 } from '../common/lib/utilities';
+import { debounce } from '../common/lib/debounce';
 import { AutoScroll } from './lib/auto-scroll';
 import { PDFThumbnails } from './pdf-thumbnails';
 import {
 	MIN_IMAGE_ANNOTATION_SIZE,
-	PDF_NOTE_DIMENSIONS
+	PDF_NOTE_DIMENSIONS,
+	A11Y_VIRT_CURSOR_DEBOUNCE_LENGTH
 } from '../common/defines';
 import PDFRenderer from './pdf-renderer';
 import { drawAnnotationsOnCanvas } from './lib/render';
@@ -138,6 +141,8 @@ class PDFView {
 
 		this.initializedPromise = new Promise(resolve => this._resolveInitializedPromise = resolve);
 		this._pageLabelsPromise = new Promise(resolve => this._resolvePageLabelsPromise = resolve);
+
+		this._a11yVirtualCursorTarget = null;
 
 		let setOptions = () => {
 			if (!this._iframeWindow?.PDFViewerApplicationOptions) {
@@ -227,10 +232,15 @@ class PDFView {
 							this._onSetSelectionPopup({ ...this._selectionPopup, rect });
 						}
 					}
+					// If there exists a focused node for screen readers, make sure it gets blurred
+					this._iframeWindow.document.querySelector(".a11y-cursor-target")?.blur();
 				});
 
 				this._iframeWindow.addEventListener('focus', (event) => {
 					options.onFocus();
+					// Help screen readers understand where to place virtual cursor
+					placeA11yVirtualCursor(this._a11yVirtualCursorTarget);
+					this._a11yVirtualCursorTarget = null;
 				});
 			});
 		});
@@ -787,6 +797,9 @@ class PDFView {
 					findPrevious: false
 				});
 			}
+			// Make sure the state is updated regardless to have last _findState.result value
+			this._findState = state;
+			this.a11yWillPlaceVirtCursorOnSearchResult();
 		}
 		else {
 			this._findState = state;
@@ -817,6 +830,32 @@ class PDFView {
 			findPrevious: true
 		});
 	}
+
+
+	// After the search result is switched to, record which node the
+	// search result is in to place screen readers' virtual cursor on it.
+	a11yWillPlaceVirtCursorOnSearchResult = debounce(() => {
+		// Seemingly no longer works
+		let searchResult = this._iframeWindow.document.querySelector(".highlight.selected.appended");
+		if (!searchResult || !this._findState.result) return;
+		this._a11yVirtualCursorTarget = searchResult.parentNode;
+	}, A11Y_VIRT_CURSOR_DEBOUNCE_LENGTH);
+
+	// Record the top of the current page as the element that the virtual cursor
+	// should land on when focus enters the content. Debounce is needed to
+	// make sure that the value is set when scrolling is finished because it
+	// clears the cursor target.
+	a11yWillPlaceVirtCursorOnTop = debounce(() => {
+		// If the focus is within the document, do nothing to avoid unnecessarily moving
+		// the cursor to the top of the page if the window is blurred and then re-focused.
+		if (this._iframeWindow.document.hasFocus()) return;
+		// Do not interfere with marking search results as virtual cursor targets
+		if (this._findState?.active) return;
+		let { currentPageNumber } = this._iframeWindow.PDFViewerApplication.pdfViewer;
+		let page = this._iframeWindow.PDFViewerApplication.pdfViewer._pages[currentPageNumber - 1];
+		let pageTop = page.div.querySelector(".textLayer span");
+		this._a11yVirtualCursorTarget = pageTop;
+	}, A11Y_VIRT_CURSOR_DEBOUNCE_LENGTH);
 
 	setSelectedAnnotationIDs(ids) {
 		this._selectedAnnotationIDs = ids;
@@ -1684,6 +1723,8 @@ class PDFView {
 		// Prevents showing focus box after pressing Enter and de-selecting annotation which was select with mouse
 		this._lastFocusedObject = null;
 
+		// If we marked a node as future focus target for screen readers, clear it to avoid scrolling to it
+		this._a11yVirtualCursorTarget = null;
 		if (!event.target.closest('#viewerContainer')) {
 			return;
 		}
@@ -2555,6 +2596,7 @@ class PDFView {
 			scrollMode,
 			spreadMode
 		});
+		this.a11yWillPlaceVirtCursorOnTop();
 	}
 
 	_handleContextMenu(event) {

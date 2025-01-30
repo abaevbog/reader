@@ -43,3 +43,4 @@ export const INK_ANNOTATION_WIDTH_STEPS = [
 ];
 
 export const TEXT_ANNOTATION_FONT_SIZE_STEPS = [10, 12, 14, 18, 24, 36, 48, 64, 72, 96, 144, 192];
+export const A11Y_VIRT_CURSOR_DEBOUNCE_LENGTH = 100; // ms

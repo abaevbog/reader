@@ -43,7 +43,8 @@ import {
 	getCodeCombination,
 	getKeyCombination,
 	isMac,
-	isSafari
+	isSafari,
+	placeA11yVirtualCursor
 } from "../../common/lib/utilities";
 import {
 	closestElement,
@@ -144,6 +145,8 @@ abstract class DOMView<State extends DOMViewState, Data> {
 
 	protected _lastKeyboardFocusedAnnotationID: string | null = null;
 
+	protected _a11yVirtualCursorTarget: Node | null;
+
 	scale = 1;
 
 	protected constructor(options: DOMViewOptions<State, Data>) {
@@ -164,6 +167,7 @@ abstract class DOMView<State extends DOMViewState, Data> {
 			onUpdate: () => this._updateViewStats(),
 			onNavigate: location => this.navigate(location, { skipHistory: true, behavior: 'auto' }),
 		});
+		this._a11yVirtualCursorTarget = null;
 
 		this._iframe = document.createElement('iframe');
 		this._iframe.sandbox.add('allow-same-origin', 'allow-modals');
@@ -1348,6 +1352,9 @@ abstract class DOMView<State extends DOMViewState, Data> {
 
 		this._options.onSetOverlayPopup();
 
+		// If we marked a node as future focus target for screen readers, clear it to avoid scrolling to it
+		this._a11yVirtualCursorTarget = null;
+
 		// Create note annotation on pointer down event, if note tool is active.
 		// The note tool will be automatically deactivated in reader.js,
 		// because this is what we do in PDF reader
@@ -1466,6 +1473,11 @@ abstract class DOMView<State extends DOMViewState, Data> {
 			this._renderAnnotations();
 			this._repositionPopups();
 		});
+		// If there exists a focused node for screen readers, make sure it gets blurred
+		let cursorTarget = this._iframeDocument.querySelector(".a11y-cursor-target");
+		if (cursorTarget) {
+			(cursorTarget as HTMLElement).blur();
+		}
 	}
 
 	protected _handleScrollCapture(event: Event) {
@@ -1532,6 +1544,10 @@ abstract class DOMView<State extends DOMViewState, Data> {
 
 	private _handleFocus() {
 		this._options.onFocus();
+
+		// Help screen readers understand where to place virtual cursor
+		placeA11yVirtualCursor(this._a11yVirtualCursorTarget);
+		this._a11yVirtualCursorTarget = null;
 	}
 
 	private _preventNextClickEvent() {
@@ -1762,6 +1778,7 @@ export type DOMViewOptions<State extends DOMViewState, Data> = {
 	onKeyUp: (event: KeyboardEvent) => void;
 	onKeyDown: (event: KeyboardEvent) => void;
 	onEPUBEncrypted: () => void;
+	getLocalizedString: (name: string) => string;
 	data: Data & {
 		buf?: Uint8Array,
 		url?: string
