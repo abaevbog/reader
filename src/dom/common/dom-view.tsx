@@ -749,7 +749,7 @@ abstract class DOMView<State extends DOMViewState, Data> {
 		let annotationsStyle = this._iframeDocument.createElement('style');
 		annotationsStyle.innerHTML = annotationsCSS;
 		this._annotationShadowRoot.append(annotationsStyle);
-		this._annotationShadowRoot.addEventListener("focusin", this._handleAnnotationFocus.bind(this));
+		this._annotationShadowRoot.addEventListener("focusin", this._handleAnnotationFocusIn.bind(this));
 
 		this._iframeDocument.documentElement.classList.toggle('is-safari', isSafari);
 
@@ -1587,11 +1587,13 @@ abstract class DOMView<State extends DOMViewState, Data> {
 		placeA11yVirtualCursor(this._a11yVirtualCursorTarget);
 	}
 
-	private _handleAnnotationFocus(event: Event) {
-		let annotationID = (event.target as HTMLElement).dataset.annotationId;
-		let annotation = annotationID ? this._annotations.find(ann => ann.id == annotationID) : null;
-		if (annotation) {
-			this._options.onFocusAnnotation(annotation);
+	private _handleAnnotationFocusIn(event: Event) {
+		let annotationID = (event.target as HTMLElement | SVGElement).dataset.annotationId;
+		if (annotationID) {
+			let annotation = this._annotationsByID.get(annotationID);
+			if (annotation) {
+				this._options.onFocusAnnotation(annotation);
+			}
 		}
 	}
 

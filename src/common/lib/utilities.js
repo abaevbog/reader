@@ -430,17 +430,22 @@ export async function placeA11yVirtualCursor(target) {
 	let previousTarget =  doc.querySelector('.a11y-cursor-target');
 	// if the target did not change, do nothing
 	if (target == previousTarget && doc.activeElement == target) return;
-	function blurHandler(event) {
-		event.target.removeAttribute('tabindex');
-		event.target.classList.remove('a11y-cursor-target');
-		event.target.removeEventListener('blur', blurHandler);
+	let oldTabIndex = target.getAttribute('tabindex');
+	function blurHandler() {
+		if (oldTabIndex) {
+			target.setAttribute('tabindex', oldTabIndex);
+		}
+		else {
+			target.removeAttribute('tabindex');
+		}
+		target.classList.remove('a11y-cursor-target');
 	}
 	// Make it temporarily focusable
 	target.setAttribute('tabindex', '-1');
 	target.classList.add('a11y-cursor-target');
 	target.focus({ preventScroll: true });
 	// Remove all a11y props if the element is blurred
-	target.addEventListener('blur', blurHandler);
+	target.addEventListener('blur', blurHandler, { once: true });
 	// Cleanup if the focus did not take
 	if (doc.activeElement != target) {
 		blurHandler({ target });

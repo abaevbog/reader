@@ -164,7 +164,7 @@ export type FindState = {
 		index: number,
 		// Mobile app lists all results in a popup
 		snippets: string[],
-		annotation?: NewAnnotation
+		annotation?: NewAnnotation,
 		// Used for a11y notifications
 		currentSnippet: string,
 		currentPageLabel: string | null
