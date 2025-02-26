@@ -1590,10 +1590,7 @@ abstract class DOMView<State extends DOMViewState, Data> {
 	private _handleAnnotationFocusIn(event: Event) {
 		let annotationID = (event.target as HTMLElement | SVGElement).dataset.annotationId;
 		if (annotationID) {
-			let annotation = this._annotationsByID.get(annotationID);
-			if (annotation) {
-				this._options.onFocusAnnotation(annotation);
-			}
+			this._options.onFocusAnnotation(this._annotationsByID.get(annotationID)!);
 		}
 	}
 
