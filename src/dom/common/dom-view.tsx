@@ -451,6 +451,27 @@ abstract class DOMView<State extends DOMViewState, Data> {
 		return obj;
 	}
 
+	// Some focusable may be hidden and, therefore, not actually focusable.
+	// For this, to move focus, try the next/previous element, and if the focus
+	// does not land - keep going in the specified direction until focus lands.
+	protected _moveFocus = (focusableElements: (HTMLElement | SVGElement)[], index: number, isForward: boolean) => {
+		let condition = (i: number) => {
+			if (isForward) return i < focusableElements.length;
+			return i >= 0;
+		};
+		let move = (i: number) => {
+			if (isForward) return i + 1;
+			return i - 1;
+		};
+		for (let i = index; condition(i); i = move(i)) {
+			focusableElements[i].focus({ preventScroll: true });
+			if (this._iframeDocument.activeElement === focusableElements[i]) {
+				return focusableElements[i];
+			}
+		}
+		return null;
+	};
+
 	protected _updateAnnotationRange(annotation: WADMAnnotation, range: Range): WADMAnnotation {
 		let newAnnotation = this._getAnnotationFromRange(range, annotation.type);
 		if (!newAnnotation) {
@@ -917,11 +938,8 @@ abstract class DOMView<State extends DOMViewState, Data> {
 		}
 		else if (key === 'Tab') {
 			if (!f.focusedElement && this._iframeDocument.getSelection()!.isCollapsed && !this._selectedAnnotationIDs.length) {
-				// In PDF view the first visible object (annotation, overlay) is focused
-				if (f.focusableElements.length) {
-					f.focusableElements[0].focus({ preventScroll: true });
-				}
-				else {
+				let focused = this._moveFocus(f.focusableElements, 0, true);
+				if (!focused) {
 					this._options.onTabOut();
 				}
 			}
@@ -934,14 +952,12 @@ abstract class DOMView<State extends DOMViewState, Data> {
 
 		if (f.focusedElement) {
 			if (!window.rtl && key === 'ArrowRight' || window.rtl && key === 'ArrowLeft' || key === 'ArrowDown') {
-				f.focusableElements[(f.focusedElementIndex + 1) % f.focusableElements.length]
-					?.focus({ preventScroll: true });
+				this._moveFocus(f.focusableElements, (f.focusedElementIndex + 1) % f.focusableElements.length, true);
 				event.preventDefault();
 				return;
 			}
 			else if (!window.rtl && key === 'ArrowLeft' || window.rtl && key === 'ArrowRight' || key === 'ArrowUp') {
-				f.focusableElements[(f.focusedElementIndex - 1 + f.focusableElements.length) % f.focusableElements.length]
-					?.focus({ preventScroll: true });
+				this._moveFocus(f.focusableElements, (f.focusedElementIndex - 1 + f.focusableElements.length) % f.focusableElements.length, false);
 				event.preventDefault();
 				return;
 			}
